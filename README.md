@@ -4,11 +4,10 @@
 
 ![recon results](https://github.com/well0x01/recon.sh/blob/main/results-recon-sh.png)
 
-## Use
+## Commands
 
-chmod +x recon.sh
+* chmod +x recon.sh
 
-./recon.sh
+* ./recon.sh
 
-Enter domain to enumerate subdomains:
-(domain.com)
+* Enter domain to enumerate subdomains:
