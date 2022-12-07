@@ -36,7 +36,7 @@ cat $domain/assetfinder.txt $domain/subfinder.txt $domain/amass.txt $domain/cert
 
 # Enumerate DNS
 echo -e "${red}[+]Enumerating DNS...";
-cat ${domain}/domains.txt | dnsx -silent -a -resp-only -o $domain/dnsx.txt 
+cat ${domain}/domains.txt | dnsx -silent -a -aaaa -cname -mx -ns -soa -txt -resp-only -o $domain/dnsx.txt 
 
 # Enumerate CIDR
 echo -e "${red}[+]Enumerating CIDR..."; 
