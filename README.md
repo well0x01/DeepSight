@@ -42,7 +42,7 @@ go install -v github.com/tomnomnom/anew@latest
 
 ```bash
 chmod +x deepsight.sh
-./recon.sh
+./deepsight.sh
 ```
 
 ## Contribuição
