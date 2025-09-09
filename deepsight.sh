@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# ============================
+# Subdomain + Port Enumeration Script
+# Autor: well0x01 (rev. melhorada)
+# ============================
+
 # Função para cores
 colorize() {
     local color=$1
@@ -17,38 +22,69 @@ bold="\e[1m"
 purple="\e[35m"
 yellow="\e[33m"
 
-# Leitura do domínio
-colorize "${green}${bold}" "Enter domain to enumerate subdomains:- "
-read domain
+# Verificação de dependências
+tools=(subfinder jq anew dnsx mapcidr naabu curl awk sort uniq)
+for tool in "${tools[@]}"; do
+    if ! command -v $tool &>/dev/null; then
+        echo -e "${red}[!] Ferramenta não encontrada: $tool${reset}"
+        exit 1
+    fi
+done
+
+# Leitura do domínio (argumento ou input)
+if [ -z "$1" ]; then
+    read -p "Enter domain to enumerate subdomains: " domain
+else
+    domain=$1
+fi
 
 # Inicialização
 colorize "${red}${bold}" "[+] BOOT OF WELL0X01"
+start=$(date)
 
 # Criar diretório
-if [ ! -d "$domain" ]; then
-    mkdir $domain
-fi
+mkdir -p $domain
 
+# ============================
 # Enumeração de subdomínios
+# ============================
 colorize "${yellow}${bold}" "[+] Enumerating subdomains with Subfinder..."
 subfinder -d ${domain} -all -recursive -o $domain/subfinder.txt -silent
 
-# Enumeração Cert.sh
 colorize "${yellow}${bold}" "[+] Enumerating subdomains with crt.sh..."
-curl -s "https://crt.sh/?q=%25.$domain&output=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | anew $domain/cert.txt
+curl -s "https://crt.sh/?q=%25.$domain&output=json" \
+| jq -r '.[].name_value' 2>/dev/null \
+| sed 's/\*\.//g' | sort -u | anew $domain/cert.txt
 
-# Combinando resultados
-colorize "${blue}${bold}" "Domains saved at $domain/domains.txt..."
-cat $domain/subfinder.txt $domain/cert.txt | anew $domain/domains.txt
+# Combinar resultados
+colorize "${blue}${bold}" "[+] Saving combined domains..."
+cat $domain/subfinder.txt $domain/cert.txt | sort -u | anew $domain/domains.txt
 
-# Enumeração DNS
-colorize "${yellow}${bold}" "[+] Enumerating DNS with dnsx..."
-cat ${domain}/domains.txt | dnsx -silent -a -resp-only -o $domain/dnsx.txt
+# ============================
+# Resolução DNS
+# ============================
+colorize "${yellow}${bold}" "[+] Resolving DNS with dnsx..."
+dnsx -silent -a -resp -l $domain/domains.txt -o $domain/dnsx.txt
 
-# Enumeração CIDR
-colorize "${yellow}${bold}" "[+] Enumerating CIDR with mapcidr..."
-mapcidr -cl $domain/dnsx.txt -silent -aggregate -o $domain/mapcidr.txt
+# ============================
+# Extração de IPs e CIDR
+# ============================
+colorize "${yellow}${bold}" "[+] Extracting IPs and aggregating with mapcidr..."
+awk '{print $2}' $domain/dnsx.txt \
+| grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | sort -u \
+| mapcidr -aggregate -o $domain/mapcidr.txt
 
-# Enumeração Naabu
-colorize "${yellow}${bold}" "[+] Enumerating open ports with Naabu..."
-naabu -l $domain/mapcidr.txt -p 80,81,82,88,135,143,300,443,554,591,593,832,902,981,993,1010,1024,1311,2077,2079,2082,2083,2086,2087,2095,2096,2222,2480,3000,3128,3306,3333,3389,4243,4443,4567,4711,4712,4993,5000,5001,5060,5104,5108,5357,5432,5800,5985,6379,6543,7000,7170,7396,7474,7547,8000,8001,8008,8014,8042,8069,8080,8081,8083,8085,8088,8089,8090,8091,8118,8123,8172,8181,8222,8243,8280,8281,8333,8443,8500,8834,8880,8888,8983,9000,9043,9060,9080,9090,9091,9100,9200,9443,9800,9981,9999,10000,10443,12345,12443,16080,18091,18092,20720,28017,49152 -silent -sa | anew $domain/naabuIP.txt
+# ============================
+# Enumeração de portas
+# ============================
+colorize "${yellow}${bold}" "[+] Scanning ports with Naabu (top 100)..."
+naabu -l $domain/mapcidr.txt -top-ports 100 -json -o $domain/naabu.json
+
+jq -r '.ip + ":" + (.port|tostring)' $domain/naabu.json | anew $domain/naabuIP.txt
+
+# Finalização
+end=$(date)
+colorize "${green}${bold}" "[+] Recon finalizado!"
+echo -e "${blue}Started: $start${reset}"
+echo -e "${blue}Finished: $end${reset}"
+echo -e "${purple}[+] Results stored in folder: $domain${reset}"
