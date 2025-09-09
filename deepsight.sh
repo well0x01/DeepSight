@@ -70,7 +70,7 @@ dnsx -silent -a -resp -l $domain/domains.txt -o $domain/dnsx.txt
 # Extração de IPs e CIDR
 # ============================
 colorize "${yellow}${bold}" "[+] Extracting IPs and aggregating with mapcidr..."
-awk '{print $2}' $domain/dnsx.txt \
+awk '{print $3}' $domain/dnsx.txt \
 | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | sort -u \
 | mapcidr -aggregate -o $domain/mapcidr.txt
 
@@ -78,9 +78,8 @@ awk '{print $2}' $domain/dnsx.txt \
 # Enumeração de portas
 # ============================
 colorize "${yellow}${bold}" "[+] Scanning ports with Naabu (top 100)..."
-naabu -l $domain/mapcidr.txt -top-ports 100 -json -o $domain/naabu.json
-
-jq -r '.ip + ":" + (.port|tostring)' $domain/naabu.json | anew $domain/naabuIP.txt
+naabu -l $domain/mapcidr.txt -top-ports 100  
+anew $domain/naabuIP.txt
 
 # Finalização
 end=$(date)
